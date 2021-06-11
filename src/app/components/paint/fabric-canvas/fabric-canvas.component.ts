@@ -12,6 +12,7 @@ import { CustomFabricObject } from '../models';
 export class FabricCanvasComponent implements AfterContentInit, AfterViewInit, OnInit {
   canvas: fabric.Canvas;
   public url: string | ArrayBuffer = '';
+  loading: boolean = false;
   @Input() set imageDataURL(v: string) {
     if (v) {
       this.eventHandler.imageDataUrl = v;
@@ -21,6 +22,7 @@ export class FabricCanvasComponent implements AfterContentInit, AfterViewInit, O
   constructor(private eventHandler: EventHandlerService, private ngZone: NgZone, private _authService: AuthService) { }
 
   ngOnInit() {
+    this.loading = true;
     this.loadCanvasToJSON();
   }
 
@@ -52,13 +54,43 @@ export class FabricCanvasComponent implements AfterContentInit, AfterViewInit, O
   }
 
   private addEventListeners() {
-    this.canvas.on('mouse:down', e => this.ngZone.run(() => this.onCanvasMouseDown(e)));
-    this.canvas.on('mouse:move', e => this.ngZone.run(() => this.onCanvasMouseMove(e)));
-    this.canvas.on('mouse:up', () => this.ngZone.run(() => this.onCanvasMouseUp()));
-    this.canvas.on('selection:created', e => this.ngZone.run(() => this.onSelectionCreated(e as any)));
-    this.canvas.on('selection:updated', e => this.ngZone.run(() => this.onSelectionUpdated(e as any)));
-    this.canvas.on('object:moving', e => this.ngZone.run(() => this.onObjectMoving(e as any)));
-    this.canvas.on('object:scaling', e => this.ngZone.run(() => this.onObjectScaling(e as any)));
+    this.canvas.on('mouse:down', e => this.ngZone.run(() => {
+      this.onCanvasMouseDown(e);
+      // this.saveCanvasToJSON();
+
+    }
+    ));
+    this.canvas.on('mouse:move', e => this.ngZone.run(() => {
+      this.onCanvasMouseMove(e);
+      // this.saveCanvasToJSON();
+
+    }));
+    this.canvas.on('mouse:up', () => this.ngZone.run(() => {
+      this.onCanvasMouseUp();
+      this.saveCanvasToJSON();
+
+    }
+    ));
+    this.canvas.on('selection:created', e => this.ngZone.run(() => {
+      this.onSelectionCreated(e as any);
+      // this.saveCanvasToJSON();
+
+    }));
+    this.canvas.on('selection:updated', e => this.ngZone.run(() => {
+      this.onSelectionUpdated(e as any);
+      // this.saveCanvasToJSON();
+
+    }));
+    this.canvas.on('object:moving', e => this.ngZone.run(() => {
+      this.onObjectMoving(e as any);
+      // this.saveCanvasToJSON();
+    }
+    ));
+    this.canvas.on('object:scaling', e => this.ngZone.run(() => {
+      this.onObjectScaling(e as any);
+      this.saveCanvasToJSON();
+
+    }));
   }
 
   private onCanvasMouseDown(event: { e: Event }) {
@@ -96,6 +128,7 @@ export class FabricCanvasComponent implements AfterContentInit, AfterViewInit, O
   }
 
   saveCanvasToJSON() {
+    this.loading = true;
     const json = JSON.stringify(this.canvas);
     localStorage.setItem('Kanvas', json);
     let docRef: any = this._authService.fetchRecord(JSON.parse(localStorage.getItem('currentUser')).user.uid);
@@ -113,12 +146,17 @@ export class FabricCanvasComponent implements AfterContentInit, AfterViewInit, O
 
     let docRef: any = this._authService.fetchRecord(JSON.parse(localStorage.getItem('currentUser')).user.uid);
     docRef.get().subscribe((doc) => {
+      this.loading = false;
+
       // const CANVAS = localStorage.getItem('Kanvas');
       if (doc.exists) {
         const CANVAS = doc.data().JsonString;
         // and load everything from the same json
         this.canvas.loadFromJSON(CANVAS, () => {
+
           this.canvas.renderAll();
+          this.loading = false;
+
         });
       }
     });
@@ -132,6 +170,8 @@ export class FabricCanvasComponent implements AfterContentInit, AfterViewInit, O
     record['Id'] = JSON.parse(localStorage.getItem('currentUser')).user.uid;
     record['JsonString'] = localStorage.getItem('Kanvas');
     this._authService.create_NewRecord(record).then(resp => {
+      this.loading = false;
+
     })
       .catch(error => {
         console.log(error);
@@ -143,6 +183,8 @@ export class FabricCanvasComponent implements AfterContentInit, AfterViewInit, O
     record['Id'] = JSON.parse(localStorage.getItem('currentUser')).user.uid;
     record['JsonString'] = localStorage.getItem('Kanvas');
     this._authService.update_Record(record['Id'], record).then(resp => {
+      this.loading = false;
+
     })
       .catch(error => {
         console.log(error);
